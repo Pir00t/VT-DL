@@ -6,12 +6,15 @@ import subprocess
 import sys
 import tempfile
 
+script_path = os.path.dirname(os.path.abspath(__file__))  # global script path
+
 #
+
 __author__ = 'Pir00t'
-__date__ = 20190228
-__version__ = 0.1
-__description__ = 'Script to query VirusTotal API then download the samples to a password protected zip file.'
-# TODO: Review other API calls and add args/functions
+__date__ = 20190328
+__version__ = 0.2
+__description__ = 'Script to query VirusTotal API and open web directories. Then download the samples to a zip file.'
+
 #
 
 def vt_download(fhash):
@@ -27,39 +30,42 @@ def vt_download(fhash):
 
     # create temp file in 'wb' mode
     temp = tempfile.NamedTemporaryFile(delete=True)
-    
+
     # query the api
     try:
         print "Querying VirusTotal...\n"
-        response = requests.get(url, params=params, stream=True)
+        response = requests.get(url, params=params)
         response.raise_for_status()
-        for chunk in response.iter_content(chunk_size=128):
-            temp.write(chunk)
+        downloaded_file = response.content
+        temp.write(downloaded_file)
+        temp.flush()
+        temp_path = temp.name
     except requests.exceptions.HTTPError as e:
         print e
         sys.exit(1)
 
-    zipper(fhash, temp)
+    zipper(fhash, temp_path)
     temp.close()
 
-def zipper(fhash, temp):
 
-    # retrieve path/name of temp file
-    ftemp = temp.name
+def zipper(fhash, temp_path):
 
     # cmd to run local bash zip via subprocess
-    zip_cmd = (['zip', '-ejPinfected', 'Samples/'+fhash+'.zip'] + [ftemp])
+    zip_cmd = (['zip', '-ejPinfected', 'Samples/'+fhash+'.zip'] + [temp_path])
     zip_file = subprocess.Popen(zip_cmd, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
     zip_file.communicate()
+
     print "Done!\nFile saved to ./Samples"
-    
+
     return
 
 def main():
+
     print ("\nScript by %s" % __author__)
     print ("Current version %s\n" % __version__)
 
     # Add in argument options
+
     parser = argparse.ArgumentParser(description="Specify details to lookup")
     parser.add_argument("-d", "--download", help="Type md5/sha1/sha256 to download from VirusTotal")
 
@@ -73,5 +79,8 @@ def main():
         fhash = args.download
         vt_download(fhash)
 
+#
+
 if __name__ == '__main__':
+
     main()
